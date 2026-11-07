@@ -117,6 +117,12 @@ export class CdkMenuTrigger extends CdkMenuTriggerBase implements OnChanges, OnD
       this._menuTracker.update(this);
     }
     if (!this.isOpen() && this.menuTemplateRef != null) {
+      // A submenu of a sibling item might still be open, e.g. if it was opened by hovering over
+      // it before this one was opened with the keyboard. Close it so they don't overlap.
+      if (this._parentMenu) {
+        this.menuStack.closeSubMenuOf(this._parentMenu);
+      }
+
       this.opened.next();
 
       this.overlayRef =

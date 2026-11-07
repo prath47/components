@@ -1,4 +1,4 @@
-import {ENTER, SPACE, TAB} from '../keycodes';
+import {ENTER, RIGHT_ARROW, SPACE, TAB} from '../keycodes';
 import {
   Component,
   ElementRef,
@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {By} from '@angular/platform-browser';
-import {dispatchKeyboardEvent} from '../../cdk/testing/private';
+import {dispatchFakeEvent, dispatchKeyboardEvent} from '../../cdk/testing/private';
 import {CdkMenu} from './menu';
 import {Menu} from './menu-interface';
 import {CdkMenuItem} from './menu-item';
@@ -535,7 +535,81 @@ describe('MenuTrigger', () => {
     expect(firstItem).toBeTruthy();
     expect(document.activeElement).toBe(firstItem);
   });
+
+  describe('with sibling sub-menus', () => {
+    let fixture: ComponentFixture<MenuWithSiblingSubMenus>;
+
+    const getItem = (id: string) => document.querySelector(`#${id}`) as HTMLElement;
+    const isOpen = (menuId: string) => !!document.querySelector(`#${menuId}`);
+
+    /** Opens the root menu and then the first submenu by hovering over its trigger. */
+    const openFirstSubMenuWithMouse = () => {
+      getItem('root-trigger').click();
+      fixture.detectChanges();
+      dispatchFakeEvent(getItem('first'), 'mouseenter');
+      fixture.detectChanges();
+      expect(isOpen('first-menu')).toBe(true);
+    };
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(MenuWithSiblingSubMenus);
+      fixture.detectChanges();
+    });
+
+    it('should close an open sibling sub-menu when opening one with the right arrow', () => {
+      openFirstSubMenuWithMouse();
+
+      dispatchKeyboardEvent(getItem('second'), 'keydown', RIGHT_ARROW);
+      fixture.detectChanges();
+
+      expect(isOpen('first-menu')).toBe(false);
+      expect(isOpen('second-menu')).toBe(true);
+    });
+
+    it('should close an open sibling sub-menu when opening one with enter', () => {
+      openFirstSubMenuWithMouse();
+
+      dispatchKeyboardEvent(getItem('second'), 'keydown', ENTER);
+      fixture.detectChanges();
+
+      expect(isOpen('first-menu')).toBe(false);
+      expect(isOpen('second-menu')).toBe(true);
+    });
+
+    it('should keep the parent menu open when switching between sibling sub-menus', () => {
+      openFirstSubMenuWithMouse();
+
+      dispatchKeyboardEvent(getItem('second'), 'keydown', RIGHT_ARROW);
+      fixture.detectChanges();
+
+      expect(isOpen('root-menu')).toBe(true);
+    });
+  });
 });
+
+@Component({
+  template: `
+    <button id="root-trigger" [cdkMenuTriggerFor]="root">Open</button>
+
+    <ng-template #root>
+      <div cdkMenu id="root-menu">
+        <button cdkMenuItem id="first" [cdkMenuTriggerFor]="firstMenu">First</button>
+        <button cdkMenuItem id="second" [cdkMenuTriggerFor]="secondMenu">Second</button>
+      </div>
+    </ng-template>
+
+    <ng-template #firstMenu>
+      <div cdkMenu id="first-menu"><button cdkMenuItem>First child</button></div>
+    </ng-template>
+
+    <ng-template #secondMenu>
+      <div cdkMenu id="second-menu"><button cdkMenuItem>Second child</button></div>
+    </ng-template>
+  `,
+  imports: [CdkMenu, CdkMenuItem, CdkMenuTrigger],
+  changeDetection: ChangeDetectionStrategy.Eager,
+})
+class MenuWithSiblingSubMenus {}
 
 @Component({
   template: `
